@@ -116,9 +116,9 @@ double getMSSIM( const Mat& i1, const Mat& i2)
 
 int main( int argc, char** argv )
 {
-    String imageName( "img/sample.jpg" );
-    String imageName2( "img/dist-sample.jpg" );
-    Mat text(100,500,CV_8UC1);
+    String imageName( "img/original.jpg" );
+    String imageName2( "img/noise.jpg" );
+    Mat text(200,800,CV_8UC1);
     if( argc > 1)
     {
         imageName = argv[1];
@@ -132,8 +132,9 @@ int main( int argc, char** argv )
         cout <<  "Could not open or find the image" << std::endl ;
         return -1;
     }
-    //putText(text, "Score: " + to_string(getMSSIM(image, image2)), Point(10, 40), FONT_HERSHEY_SIMPLEX, 1, Scalar(128));
-    putText(text, "Score: " + to_string(getBRISQUE(imageName2)), Point(10, 40), FONT_HERSHEY_SIMPLEX, 1, Scalar(128));
+    putText(text, "MSSIM score: " + to_string(getMSSIM(image, image2)), Point(10, 40), FONT_HERSHEY_SIMPLEX, 1, Scalar(128));
+    putText(text, "BRISQUE score (original): " + to_string(getBRISQUE("img/original.jpg")), Point(10, 100), FONT_HERSHEY_SIMPLEX, 1, Scalar(128));
+    putText(text, "BRISQUE score (noise): " + to_string(getBRISQUE("img/noise.jpg")), Point(10, 160), FONT_HERSHEY_SIMPLEX, 1, Scalar(128));
     imshow("result", text);
     waitKey(0);
     return 0;
