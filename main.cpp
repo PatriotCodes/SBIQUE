@@ -114,11 +114,31 @@ double getMSSIM( const Mat& i1, const Mat& i2)
     return result;
 }
 
+double getPSNR(const Mat& I1, const Mat& I2)
+{
+    Mat s1;
+    absdiff(I1, I2, s1);       // |I1 - I2|
+    s1.convertTo(s1, CV_32F);  // cannot make a square on 8 bits
+    s1 = s1.mul(s1);           // |I1 - I2|^2
+
+    Scalar s = sum(s1);         // sum elements per channel
+
+    double sse = s.val[0] + s.val[1] + s.val[2]; // sum channels
+
+    if( sse <= 1e-10) // for small values return zero
+        return 0;
+    else
+    {
+        double  mse =sse /(double)(I1.channels() * I1.total());
+        double psnr = 10.0*log10((255*255)/mse);
+        return psnr;
+    }
+}
+
 int main( int argc, char** argv )
 {
-    String imageName( "img/original.jpg" );
-    String imageName2( "img/noise.jpg" );
-    Mat text(200,800,CV_8UC1);
+    String imageName( "img/original-scaled-image.jpg" );
+    String imageName2( "img/original-scaled-image-noise.jpg" );
     if( argc > 1)
     {
         imageName = argv[1];
@@ -129,13 +149,13 @@ int main( int argc, char** argv )
     image2 = imread( imageName2, IMREAD_COLOR );  
     if( image.empty() || image2.empty()) 
     {
-        cout <<  "Could not open or find the image" << std::endl ;
+        cout <<  "Could not open or find the image" << endl ;
         return -1;
     }
-    putText(text, "MSSIM score: " + to_string(getMSSIM(image, image2)), Point(10, 40), FONT_HERSHEY_SIMPLEX, 1, Scalar(128));
-    putText(text, "BRISQUE score (original): " + to_string(getBRISQUE("img/original.jpg")), Point(10, 100), FONT_HERSHEY_SIMPLEX, 1, Scalar(128));
-    putText(text, "BRISQUE score (noise): " + to_string(getBRISQUE("img/noise.jpg")), Point(10, 160), FONT_HERSHEY_SIMPLEX, 1, Scalar(128));
-    imshow("result", text);
+    cout << "MSSIM score: " + to_string(getMSSIM(image, image2)) << endl;
+    cout << "PSNR score: " + to_string(getPSNR(image, image2)) << endl;
+    cout << "BRISQUE score (original): " + to_string(getBRISQUE(imageName)) << endl;
+    cout << "BRISQUE score (noise): " + to_string(getBRISQUE(imageName2)) << endl;
     waitKey(0);
     return 0;
 }
