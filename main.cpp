@@ -30,48 +30,73 @@ bool AddGaussianNoise_Opencv(const Mat mSrc, Mat &mDst,double Mean=0.0, double S
     return true;
 }
 
-struct testImage {
-  string originalPath;
-  Mat originalImage;
-  Mat noiseImage;
-};
-
 int main( int argc, char** argv )
 {
   string path;
   cout << "Please specify directory with images: ";
   cin >> path;
-  vector<testImage> images;
-  for (const auto & p : std::experimental::filesystem::directory_iterator(path)) {
-      testImage tmp;
-      tmp.originalPath = p.path();
-      tmp.originalImage = imread(tmp.originalPath, IMREAD_COLOR);
-      Mat mColorNoise(tmp.originalImage.size(),tmp.originalImage.type());
-      string noiseName = tmp.originalPath + "_noise.jpg";
-      cout << "Applying noise to " + tmp.originalPath << endl;
-      AddGaussianNoise_Opencv(tmp.originalImage,mColorNoise,0,10.0);
-      imwrite(noiseName, mColorNoise);
-      tmp.noiseImage = imread(noiseName, IMREAD_COLOR);
-      images.push_back(tmp);
-  }
-  cout << "Noise was applied to all images" << endl;
   string output = "";
-  for (auto image : images) {
-    cout << "Processing " + image.originalPath << endl;
-    output += image.originalPath;
+  for (const auto & p : std::experimental::filesystem::directory_iterator(path)) {
+    string originalPath = p.path();
+    cout << "Processing " + originalPath << endl;
+    Mat originalImage = imread(originalPath, IMREAD_COLOR);
+
+    string gNoiseName = originalPath + "_gaussian_noise.jpg";
+    string gBlurName = originalPath + "_gaussian_blur.jpg";
+    string gBilateralName = originalPath + "_bilateral_filter.jpg";
+
+    cout << "Applying Gaussian noise " << endl;
+    Mat gNoise(originalImage.size(),originalImage.type());
+    AddGaussianNoise_Opencv(originalImage,gNoise,0,10.0);
+    imwrite(gNoiseName, gNoise);
+
+    cout << "Removing noise using Gaussian blur " << endl;
+    Mat gBlur(originalImage.size(),originalImage.type());
+    GaussianBlur(originalImage, gBlur, Size( 3, 3 ), 0, 0 );
+    imwrite(gBlurName, gBlur);
+
+    cout << "Removing noise using bilateral filter " << endl;
+    Mat gBilateral(originalImage.size(),originalImage.type());
+    bilateralFilter (originalImage, gBilateral, 2, 4, 4 );
+    imwrite(gBilateralName, gBilateral);
+
+    cout << "Getting scores " << endl;
+    output += originalPath;
     output += '\n';
-    output += "PSNR score: ";
-    output += to_string(getPSNR(image.originalImage, image.noiseImage));
+
+    output += "PSNR score (noise): ";
+    output += to_string(getPSNR(originalImage, gNoise));
     output += '\n';
-    output += "MSSIM score: ";
-    output += to_string(getMSSIM(image.originalImage, image.noiseImage));
+    output += "PSNR score (gaussian blur): ";
+    output += to_string(getPSNR(originalImage, gBlur));
     output += '\n';
+    output += "PSNR score (bilateral filter): ";
+    output += to_string(getPSNR(originalImage, gBilateral));
+    output += '\n';
+
+    output += "MSSIM score (noise): ";
+    output += to_string(getMSSIM(originalImage, gNoise));
+    output += '\n';
+    output += "MSSIM score (gaussian blur): ";
+    output += to_string(getMSSIM(originalImage, gBlur));
+    output += '\n';
+    output += "MSSIM score (bilateral filter): ";
+    output += to_string(getMSSIM(originalImage, gBilateral));
+    output += '\n';
+
     output += "BRISQUE score (original): ";
-    output += to_string(getBRISQUE(image.originalImage));
+    output += to_string(getBRISQUE(originalImage));
     output += '\n';
     output += "BRISQUE score (noise): ";
-    output += to_string(getBRISQUE(image.noiseImage));
+    output += to_string(getBRISQUE(gNoise));
     output += '\n';
+    output += "BRISQUE score (gaussian blur): ";
+    output += to_string(getBRISQUE(gBlur));
+    output += '\n';
+    output += "BRISQUE score (bilateral filter): ";
+    output += to_string(getBRISQUE(gBilateral));
+    output += '\n';
+    
     output += '\n';
   }
   cout << "All images processed" << endl;
