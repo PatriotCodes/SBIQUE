@@ -1,6 +1,6 @@
 #include "metrics.h"
 
-float getBRISQUE(string imagename) {
+float getBRISQUE(const Mat& image) {
 
   // pre-loaded vectors from allrange file 
   float min_[36] = {0.336999 ,0.019667 ,0.230000 ,-0.125959 ,0.000167 ,0.000616 ,0.231000 ,-0.125873 ,0.000165 ,0.000600 ,0.241000 ,-0.128814 ,0.000179 ,0.000386 ,0.243000 ,-0.133080 ,0.000182 ,0.000421 ,0.436998 ,0.016929 ,0.247000 ,-0.200231 ,0.000104 ,0.000834 ,0.257000 ,-0.200017 ,0.000112 ,0.000876 ,0.257000 ,-0.155072 ,0.000112 ,0.000356 ,0.258000 ,-0.154374 ,0.000117 ,0.000351};
@@ -9,7 +9,7 @@ float getBRISQUE(string imagename) {
   double qualityscore;
   int i;
   struct svm_model* model; // create svm model object
-  Mat orig = imread(imagename, 1); // read image (color mode)
+  Mat orig = image; // read image (color mode)
   
   vector<double> brisqueFeatures; // feature vector initialization
   ComputeBrisqueFeature(orig, brisqueFeatures); // compute brisque features

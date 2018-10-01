@@ -34,3 +34,6 @@
 # Images
 *.jpg
 *.jpeg
+
+# Program Output
+output.txt

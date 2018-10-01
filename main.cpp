@@ -4,6 +4,8 @@
 #include <opencv2/imgproc/imgproc.hpp>
 #include <iostream>
 #include <string>
+#include <experimental/filesystem>
+#include <fstream>
 
 #include "metrics.h"
 
@@ -28,30 +30,54 @@ bool AddGaussianNoise_Opencv(const Mat mSrc, Mat &mDst,double Mean=0.0, double S
     return true;
 }
 
+struct testImage {
+  string originalPath;
+  Mat originalImage;
+  Mat noiseImage;
+};
+
 int main( int argc, char** argv )
 {
-    String imageName("img/original-scaled-image.jpg");
-    String noiseImageName("img/gaussian_noise.jpg");
-    if( argc > 1)
-    {
-        imageName = argv[1];
-    }
-    Mat image;
-    Mat image2;
-    image = imread( imageName, IMREAD_COLOR );
-    Mat mColorNoise(image.size(),image.type()); 
-    if( image.empty()) 
-    {
-        cout <<  "Could not open or find the image" << endl ;
-        return -1;
-    }
-    AddGaussianNoise_Opencv(image,mColorNoise,0,10.0);
-    imwrite(noiseImageName, mColorNoise);
-    image2 = imread(noiseImageName, IMREAD_COLOR);
-    cout << "MSSIM score: " + to_string(getMSSIM(image, image2)) << endl;
-    cout << "PSNR score: " + to_string(getPSNR(image, image2)) << endl;
-    cout << "BRISQUE score (original): " + to_string(getBRISQUE(imageName)) << endl;
-    cout << "BRISQUE score (noise): " + to_string(getBRISQUE(noiseImageName)) << endl;
-    waitKey(0);
-    return 0;
+  string path;
+  cout << "Please specify directory with images: ";
+  cin >> path;
+  vector<testImage> images;
+  for (const auto & p : std::experimental::filesystem::directory_iterator(path)) {
+      testImage tmp;
+      tmp.originalPath = p.path();
+      tmp.originalImage = imread(tmp.originalPath, IMREAD_COLOR);
+      Mat mColorNoise(tmp.originalImage.size(),tmp.originalImage.type());
+      string noiseName = tmp.originalPath + "_noise.jpg";
+      cout << "Applying noise to " + tmp.originalPath << endl;
+      AddGaussianNoise_Opencv(tmp.originalImage,mColorNoise,0,10.0);
+      imwrite(noiseName, mColorNoise);
+      tmp.noiseImage = imread(noiseName, IMREAD_COLOR);
+      images.push_back(tmp);
+  }
+  cout << "Noise was applied to all images" << endl;
+  string output = "";
+  for (auto image : images) {
+    cout << "Processing " + image.originalPath << endl;
+    output += image.originalPath;
+    output += '\n';
+    output += "PSNR score: ";
+    output += to_string(getPSNR(image.originalImage, image.noiseImage));
+    output += '\n';
+    output += "MSSIM score: ";
+    output += to_string(getMSSIM(image.originalImage, image.noiseImage));
+    output += '\n';
+    output += "BRISQUE score (original): ";
+    output += to_string(getBRISQUE(image.originalImage));
+    output += '\n';
+    output += "BRISQUE score (noise): ";
+    output += to_string(getBRISQUE(image.noiseImage));
+    output += '\n';
+    output += '\n';
+  }
+  cout << "All images processed" << endl;
+  ofstream out("output.txt");
+  out << output;
+  out.close();
+  cout << "Scores can be found in output.txt" << endl;
+  return 0;
 }

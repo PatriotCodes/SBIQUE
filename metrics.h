@@ -8,6 +8,6 @@
 #include "brisque.h"
 #include "libsvm/svm.h"
 
-float getBRISQUE(string imagename);
-double getMSSIM( const Mat& i1, const Mat& i2);
+float getBRISQUE(const Mat& image);
+double getMSSIM(const Mat& i1, const Mat& i2);
 double getPSNR(const Mat& I1, const Mat& I2);
