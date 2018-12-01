@@ -1,14 +1,14 @@
 #ifndef JD_BRISQUE
 #define JD_BRISQUE
 #include <opencv2/imgproc/imgproc.hpp>
-#include <opencv2/highgui.hpp>
+#include <opencv2/highgui/highgui.hpp>
 #include <stdio.h>
 #include <iostream>
 #include <cstdlib>
 #include <math.h>
 #include <vector>
 #include <string.h>
-#include <opencv2/core.hpp>
+#include <opencv2/core/core.hpp>
 
 using namespace std;
 using namespace cv;
@@ -21,13 +21,13 @@ template<class T> class Image
 
         Mat imgp;
     public:
-        Image(Mat img=0)
+        Image(Mat img=Mat())
         {
             imgp=img.clone();
         }
         ~Image()
         {
-            imgp=0;
+            imgp=Mat();
         }
         Mat equate(Mat img) 
         {
