@@ -8,6 +8,7 @@
 #include <string>
 #include <experimental/filesystem>
 #include <fstream>
+#include <stdio.h>
 
 #include "metrics.h"
 #include "formatUtils.h"
@@ -16,7 +17,22 @@
 using namespace cv;
 using namespace std;
 
-bool AddGaussianNoise_Opencv(const Mat mSrc, Mat &mDst,double Mean=0.0, double StdDev=10.0) {
+namespace fs = std::experimental::filesystem;
+
+enum METRIC_TYPE { PSNR, MSSIM, BRISQUE };
+
+inline const string metricToString(METRIC_TYPE v)
+{
+  switch (v)
+  {
+    case PSNR:    return "PSNR";
+    case MSSIM:   return "MSSIM";
+    case BRISQUE: return "BRISQUE";
+    default:      return "[Unknown METRIC_TYPE]";
+  }
+}
+
+bool AddGaussianNoise_Opencv(const Mat mSrc, Mat &mDst, double Mean=0.0, double StdDev=10.0) {
     if(mSrc.empty())
     {
         cout<<"[Error]! Input Image Empty!";
@@ -87,15 +103,90 @@ string getBRISQUEscores(Mat gNoise, Mat gBlur, Mat gBilateral, Mat gNl) {
   return output;
 }
 
+bool deleteFile(string fileName) {
+  if(remove(fileName.c_str()) != 0 )
+    return false;
+  else
+    return true;
+}
+
+bool createOutputDirectories(string mainDirectory) {
+  fs::create_directory(mainDirectory + "/noise");
+  fs::create_directory(mainDirectory + "/blur");
+}
+
+Mat findBestParams(Mat originalImage, Mat distortedImage, METRIC_TYPE metric_type) {
+  int d = 8, pd = 0;
+  int g1 = 20, g2 = 20;
+  int pg1 = 0, pg2 = 0;
+  int phase = 0;
+  while (d != pd || g1 != pg1 || g2 != pg2) { 
+    int *i;
+    if (phase == 0) {
+      pd = d;
+      i = &d;
+    } else if (phase == 1) {
+      pg1 = g1;
+      i = &g1;
+    } else {
+      pg2 = g2;
+      i = &g2;
+    }
+    double pMsim = 0;
+    double maxMsim = -100000;
+    int maxI = 0;
+    for (*i = 1; *i < 50; *i += 1) {
+      cout << "Removing noise using bilateral filter step: " << i << endl;
+      cout << "d: " << d << ";  g1: " << g1 << ";  g2: " << g2 << endl;
+      Mat gBilateral(originalImage.size(),originalImage.type());
+      bilateralFilter(distortedImage, gBilateral, d, g1, g2 );
+      double score = 0;
+      switch (metric_type) {
+        case PSNR : score = getPSNR(originalImage, gBilateral);
+        case MSSIM : score = getMSSIM(originalImage, gBilateral);
+        case BRISQUE : score = -getBRISQUE(gBilateral);
+      }
+      cout << "Score: " << score << endl;
+      if (score > maxMsim) {
+        maxMsim = score;
+        maxI = (*i);
+      }
+      if (pMsim > score && (*i) > 10)
+        break;
+      pMsim = score;
+    }
+    *i = maxI;
+    phase = (phase >= 2) ? 0 : (phase + 1);
+    cout << "pg1: " << pg1 << "; pg2: " << pg2 << endl;
+  }
+  cout << "Best params" << endl;
+  cout << "d: " << d << ";  g1: " << g1 << ";  g2: " << g2 << endl;
+  Mat gBilateral(originalImage.size(),originalImage.type());
+  bilateralFilter(distortedImage, gBilateral, d, g1, g2 );
+  return gBilateral;
+}
+
 int main( int argc, char** argv ) {
   string path;
+  string output = "";
+  int fileIterator = 0;
+
   cout << "Please specify directory with images: ";
   cin >> path;
-  string output = "";
-  for (const auto & p : std::experimental::filesystem::directory_iterator(path)) {
+
+  cout << "Creating output directories: " << endl;
+  createOutputDirectories(path);
+
+  for (const auto & p : fs::directory_iterator(path)) {
     string originalPath = p.path();
+
+    cout << "String noise removal tests: " << endl;
     cout << "Processing " + originalPath << endl;
     Mat originalImage = imread(originalPath, IMREAD_COLOR);
+
+    fileIterator++;
+    string currentWorkingDirectory = path + "/noise/" + to_string(fileIterator);
+    fs::create_directory(currentWorkingDirectory);
 
     // string blurredName = originalPath + "_gaussian_blur.jpg";
     // string unsharpMaskName = originalPath + "_unsharp_mask.jpg";
@@ -110,19 +201,17 @@ int main( int argc, char** argv ) {
     // lucyRichardsonDeconv(blurred,20,2);
     // imwrite(unsharpMaskName, sharpened);
 
-    string gNoiseName = originalPath + "_gaussian_noise.jpg";
-    string gNoiseName2 = originalPath + "_gaussian_noise_high.jpg";
-    string gBlurName = originalPath + "_gaussian_blur.jpg";
-    string gBlurName2 = originalPath + "_gaussian_blur_high.jpg";
-    string gBilateralName = originalPath + "_bilateral_filter.jpg";
-    string gBilateralName2 = originalPath + "_bilateral_filter_high.jpg";
-    string gNlName = originalPath + "_non_local.jpg";
-    string gNlName2 = originalPath + "_non_local_high.jpg";
+    // string gNoiseName2 = originalPath + "_gaussian_noise_high.jpg";
+    // string gBlurName = originalPath + "_gaussian_blur.jpg";
+    // string gBlurName2 = originalPath + "_gaussian_blur_high.jpg";
+    // string gBilateralName = originalPath + "_bilateral_filter.jpg";
+    // string gBilateralName2 = originalPath + "_bilateral_filter_high.jpg";
+    // string gNlName = originalPath + "_non_local.jpg";
+    // string gNlName2 = originalPath + "_non_local_high.jpg";
 
     cout << "Applying Gaussian noise " << endl;
     Mat gNoise(originalImage.size(),originalImage.type());
-    AddGaussianNoise_Opencv(originalImage,gNoise,0,50.0);
-    imwrite(gNoiseName, gNoise);
+    AddGaussianNoise_Opencv(originalImage,gNoise,0,25.0);
     // Mat gNoise2(originalImage.size(),originalImage.type());
     // AddGaussianNoise_Opencv(originalImage,gNoise2,0,25.0);
     // imwrite(gNoiseName2, gNoise2);
@@ -135,50 +224,14 @@ int main( int argc, char** argv ) {
     // GaussianBlur(gNoise2, gBlur2, Size( 3, 3 ), 0, 0 );
     // imwrite(gBlurName2, gBlur2);
     // 14 38 10
-    int d = 8, pd = 0;
-    int g1 = 20, g2 = 20;
-    int pg1 = 0, pg2 = 0;
-    int phase = 0;
-    while (d != pd || g1 != pg1 || g2 != pg2) { 
-      int *i;
-      if (phase == 0) {
-        pd = d;
-        i = &d;
-      } else if (phase == 1) {
-        pg1 = g1;
-        i = &g1;
-      } else {
-        pg2 = g2;
-        i = &g2;
-      }
-      double pMsim = 0;
-      double maxMsim = -100000;
-      int maxI = 0;
-      for (*i = 1; *i < 50; *i += 1) {
-        cout << "Removing noise using bilateral filter step: " << i << endl;
-        cout << "d: " << d << ";  g1: " << g1 << ";  g2: " << g2 << endl;
-        Mat gBilateral(originalImage.size(),originalImage.type());
-        bilateralFilter (gNoise, gBilateral, d, g1, g2 );
-        double score = getMSSIM(originalImage, gBilateral);
-        // double score = -getBRISQUE(gBilateral);
-        cout << "Score: " << score << endl;
-        if (score > maxMsim) {
-          maxMsim = score;
-          maxI = (*i);
-        }
-        if (pMsim > score && (*i) > 10)
-          break;
-        pMsim = score;
-      }
-      *i = maxI;
-      phase = (phase >= 2) ? 0 : (phase + 1);
-      cout << "pg1: " << pg1 << "; pg2: " << pg2 << endl;
-    }
-    cout << "Best params" << endl;
-    cout << "d: " << d << ";  g1: " << g1 << ";  g2: " << g2 << endl;
-    Mat gBilateral(originalImage.size(),originalImage.type());
-    bilateralFilter (gNoise, gBilateral, d, g1, g2 );
-    imwrite(gBilateralName, gBilateral);
+
+    // TODO: convert to function
+    METRIC_TYPE metric_type = MSSIM;
+    string metricsDirectory = currentWorkingDirectory + "/" + metricToString(MSSIM);
+    fs::create_directory(metricsDirectory);
+    imwrite(currentWorkingDirectory + "/_noise.jpg", gNoise);
+    Mat bestResult = findBestParams(originalImage, gNoise, metric_type);
+    imwrite(metricsDirectory + "/bilateral.jpg", bestResult);
 
     // cout << "Removing noise using non-local-means algorythm " << endl;
     // Mat gNl(originalImage.size(),originalImage.type());
