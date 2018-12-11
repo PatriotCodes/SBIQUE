@@ -13,7 +13,6 @@
 #include "metrics.h"
 #include "utils.h"
 #include "sharpen.h"
-#include "resultData.h"
 
 using namespace cv;
 using namespace std;
@@ -35,10 +34,11 @@ enum FILTER_TYPE { GAUSSIAN, BILATERAL, NLMEANS, UNSHARP_MASK };
 
 inline const string filterToString(FILTER_TYPE v) {
   switch (v) {
-    case FILTER_TYPE::GAUSSIAN:   return "gaussian";
-    case FILTER_TYPE::BILATERAL:  return "bilateral";
-    case FILTER_TYPE::NLMEANS:    return "non-local-means";
-    default:                      return "[Unknown FILTER_TYPE]";
+    case FILTER_TYPE::GAUSSIAN:     return "gaussian";
+    case FILTER_TYPE::BILATERAL:    return "bilateral";
+    case FILTER_TYPE::NLMEANS:      return "non-local-means";
+    case FILTER_TYPE::UNSHARP_MASK: return "unsharp mask";
+    default:                        return "[Unknown FILTER_TYPE]";
   }
 }
 
@@ -47,6 +47,15 @@ void createOutputDirectories() {
   fs::create_directory("output/noise");
   fs::create_directory("output/blur");
 }
+
+struct ResultData {
+  FILTER_TYPE filter_type;
+  METRIC_TYPE metric_type;
+  double score;
+
+  ResultData(FILTER_TYPE in_filter_type, METRIC_TYPE in_metric_type, double in_score) : 
+    filter_type(in_filter_type), metric_type(in_metric_type), score(in_score) {}
+};
 
 Mat findBestParams(Mat originalImage, Mat distortedImage, METRIC_TYPE metric_type, FILTER_TYPE filter_type) {
   int d = 8, pd = 0;
@@ -74,7 +83,7 @@ Mat findBestParams(Mat originalImage, Mat distortedImage, METRIC_TYPE metric_typ
         continue;
       }
       stepCounter++;
-      cout << "Removing noise using " + filterToString(filter_type) + "(" + metricToString(metric_type) + ") filter step: " << stepCounter << endl;
+      cout << "Processing image using " + filterToString(filter_type) + "(" + metricToString(metric_type) + ") filter step: " << stepCounter << endl;
       cout << "d: " << d << ";  g1: " << g1 << ";  g2: " << g2 << endl;
       Mat gProcessed(originalImage.size(),originalImage.type());
       switch (filter_type) {
@@ -88,6 +97,10 @@ Mat findBestParams(Mat originalImage, Mat distortedImage, METRIC_TYPE metric_typ
         }
         case FILTER_TYPE::NLMEANS : {
           fastNlMeansDenoisingColored(distortedImage, gProcessed, d, g1, g2 );
+          break;
+        }
+        case FILTER_TYPE::UNSHARP_MASK : {
+          gProcessed = unsharpMask(distortedImage,d,g1,g2);
           break;
         }
       }
@@ -134,6 +147,10 @@ Mat findBestParams(Mat originalImage, Mat distortedImage, METRIC_TYPE metric_typ
       fastNlMeansDenoisingColored(distortedImage, gProcessed, d, g1, g2 );
       break;
     }
+    case FILTER_TYPE::UNSHARP_MASK : {
+      gProcessed = unsharpMask(distortedImage,d,g1,g2);
+      break;
+    }
   }
   return gProcessed;
 }
@@ -142,6 +159,7 @@ int main( int argc, char** argv ) {
   string path;
   string output = "";
   int fileIterator = 0;
+  vector<ResultData> results;
 
   cout << "Please specify directory with images: ";
   cin >> path;
@@ -159,12 +177,6 @@ int main( int argc, char** argv ) {
     string currentWorkingDirectory = "output/noise/" + to_string(fileIterator);
     fs::create_directory(currentWorkingDirectory);
 
-    // Mat blurred;
-    // GaussianBlur(originalImage, blurred, Size(), 1, 1);
-    // imwrite(blurredName, blurred);
-    // Mat sharpened = unsharpMask(blurred,1,5,2);
-    // imwrite(unsharpMaskName, sharpened);
-
     cout << "Prepairing distorted image variations" << endl;
     cout << "Applying Gaussian noise" << endl;
     Mat gNoise(originalImage.size(),originalImage.type());
@@ -173,7 +185,7 @@ int main( int argc, char** argv ) {
     Mat gBlur;
     GaussianBlur(originalImage, gBlur, Size(), 1, 1);
 
-    cout << "Starting noise removal tests" << endl;
+    cout << "Starting tests on noise removal: " << endl;
     for (int metricIterator = METRIC_TYPE::PSNR; metricIterator <= METRIC_TYPE::BRISQUE; metricIterator++) {
       METRIC_TYPE metric_type = static_cast<METRIC_TYPE>(metricIterator);
       string metricsDirectory = currentWorkingDirectory + "/" + metricToString(metric_type);
@@ -205,13 +217,50 @@ int main( int argc, char** argv ) {
           }
         }
         cout << "percentage increase:" + to_string(percentage) + "%" << endl;
+        results.push_back(ResultData(filter_type, metric_type, percentage));
       }
-      // TODO: save results
     }
 
-    cout << "Starting deblurring tests" << endl;
+    currentWorkingDirectory = "output/blur/" + to_string(fileIterator);
+    fs::create_directory(currentWorkingDirectory);
+    cout << "Starting tests on deblurring: " << endl;
+    for (int metricIterator = METRIC_TYPE::PSNR; metricIterator <= METRIC_TYPE::BRISQUE; metricIterator++) {
+      METRIC_TYPE metric_type = static_cast<METRIC_TYPE>(metricIterator);
+      string metricsDirectory = currentWorkingDirectory + "/" + metricToString(metric_type);
+      fs::create_directory(metricsDirectory);
+      imwrite(metricsDirectory + "/_blur.jpg", gBlur);
+      for (int filterIterator = FILTER_TYPE::UNSHARP_MASK; filterIterator <= FILTER_TYPE::UNSHARP_MASK; filterIterator++) {
+        FILTER_TYPE filter_type = static_cast<FILTER_TYPE>(filterIterator);
+        Mat bestResult = findBestParams(originalImage, gBlur, metric_type, filter_type);
+        imwrite(metricsDirectory + "/" + filterToString(filter_type) + ".jpg", bestResult);
+        double percentage = 0;
+        switch (metric_type) {
+          case METRIC_TYPE::PSNR : {
+            double originalPSNR = getPSNR(originalImage, gNoise);
+            double restoredPSNR = getPSNR(originalImage, bestResult);
+            percentage = percentageIncrease(originalPSNR, restoredPSNR);
+            break;
+          }
+          case METRIC_TYPE::MSSIM : {
+            double originalMSSIM = getMSSIM(originalImage, gNoise);
+            double restoredMSSIM = getMSSIM(originalImage, bestResult);
+            percentage = percentageIncrease(originalMSSIM, restoredMSSIM);
+            break;
+          }
+          case METRIC_TYPE::BRISQUE : {
+            double originalBRISQUE = getBRISQUE(gNoise);
+            double restoredBRISQUE = getBRISQUE(bestResult);
+            percentage = percentageDecrease(originalBRISQUE, restoredBRISQUE);
+            break;
+          }
+        }
+        cout << "percentage increase:" + to_string(percentage) + "%" << endl;
+        results.push_back(ResultData(filter_type, metric_type, percentage));
+      }
+    }
 
   }
+
   cout << "All images processed" << endl;
   // ofstream out("output/results.txt");
   // out << output;
