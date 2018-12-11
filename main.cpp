@@ -21,14 +21,22 @@ namespace fs = std::experimental::filesystem;
 
 enum METRIC_TYPE { PSNR, MSSIM, BRISQUE };
 
-inline const string metricToString(METRIC_TYPE v)
-{
-  switch (v)
-  {
-    case PSNR:    return "PSNR";
-    case MSSIM:   return "MSSIM";
-    case BRISQUE: return "BRISQUE";
-    default:      return "[Unknown METRIC_TYPE]";
+inline const string metricToString(METRIC_TYPE v) {
+  switch (v) {
+    case METRIC_TYPE::PSNR:    return "PSNR";
+    case METRIC_TYPE::MSSIM:   return "MSSIM";
+    case METRIC_TYPE::BRISQUE: return "BRISQUE";
+    default:                   return "[Unknown METRIC_TYPE]";
+  }
+}
+
+enum FILTER_TYPE { BILATERAL, NLMEANS };
+
+inline const string filterToString(FILTER_TYPE v) {
+  switch (v) {
+    case FILTER_TYPE::BILATERAL:    return "bilateral";
+    case FILTER_TYPE::NLMEANS:   return "non-local-means";
+    default:                   return "[Unknown FILTER_TYPE]";
   }
 }
 
@@ -110,16 +118,18 @@ bool deleteFile(string fileName) {
     return true;
 }
 
-bool createOutputDirectories(string mainDirectory) {
-  fs::create_directory(mainDirectory + "/noise");
-  fs::create_directory(mainDirectory + "/blur");
+void createOutputDirectories() {
+  fs::create_directory("output");
+  fs::create_directory("output/noise");
+  fs::create_directory("output/blur");
 }
 
-Mat findBestParams(Mat originalImage, Mat distortedImage, METRIC_TYPE metric_type) {
+Mat findBestParams(Mat originalImage, Mat distortedImage, METRIC_TYPE metric_type, FILTER_TYPE filter_type) {
   int d = 8, pd = 0;
   int g1 = 20, g2 = 20;
   int pg1 = 0, pg2 = 0;
   int phase = 0;
+  int stepCounter = 0;
   while (d != pd || g1 != pg1 || g2 != pg2) { 
     int *i;
     if (phase == 0) {
@@ -136,15 +146,34 @@ Mat findBestParams(Mat originalImage, Mat distortedImage, METRIC_TYPE metric_typ
     double maxMsim = -100000;
     int maxI = 0;
     for (*i = 1; *i < 50; *i += 1) {
-      cout << "Removing noise using bilateral filter step: " << i << endl;
+      stepCounter++;
+      cout << "Removing noise using " + filterToString(filter_type) + "(" + metricToString(metric_type) + ") filter step: " << stepCounter << endl;
       cout << "d: " << d << ";  g1: " << g1 << ";  g2: " << g2 << endl;
-      Mat gBilateral(originalImage.size(),originalImage.type());
-      bilateralFilter(distortedImage, gBilateral, d, g1, g2 );
+      Mat gProcessed(originalImage.size(),originalImage.type());
+      switch (filter_type) {
+        case FILTER_TYPE::BILATERAL : {
+          bilateralFilter(distortedImage, gProcessed, d, g1, g2 );
+          break;
+        }
+        case FILTER_TYPE::NLMEANS : {
+          fastNlMeansDenoisingColored(distortedImage, gProcessed, d, g1, g2 );
+          break;
+        }
+      }
       double score = 0;
       switch (metric_type) {
-        case PSNR : score = getPSNR(originalImage, gBilateral);
-        case MSSIM : score = getMSSIM(originalImage, gBilateral);
-        case BRISQUE : score = -getBRISQUE(gBilateral);
+        case METRIC_TYPE::PSNR : {
+          score = getPSNR(originalImage, gProcessed);
+          break;
+        }
+        case METRIC_TYPE::MSSIM : {
+          score = getMSSIM(originalImage, gProcessed);
+          break;
+        }
+        case METRIC_TYPE::BRISQUE : {
+          score = -getBRISQUE(gProcessed);
+          break;
+        }
       }
       cout << "Score: " << score << endl;
       if (score > maxMsim) {
@@ -157,13 +186,21 @@ Mat findBestParams(Mat originalImage, Mat distortedImage, METRIC_TYPE metric_typ
     }
     *i = maxI;
     phase = (phase >= 2) ? 0 : (phase + 1);
-    cout << "pg1: " << pg1 << "; pg2: " << pg2 << endl;
   }
   cout << "Best params" << endl;
   cout << "d: " << d << ";  g1: " << g1 << ";  g2: " << g2 << endl;
-  Mat gBilateral(originalImage.size(),originalImage.type());
-  bilateralFilter(distortedImage, gBilateral, d, g1, g2 );
-  return gBilateral;
+  Mat gProcessed(originalImage.size(),originalImage.type());
+  switch (filter_type) {
+    case FILTER_TYPE::BILATERAL : {
+      bilateralFilter(distortedImage, gProcessed, d, g1, g2 );
+      break;
+    }
+    case FILTER_TYPE::NLMEANS : {
+      fastNlMeansDenoisingColored(distortedImage, gProcessed, d, g1, g2 );
+      break;
+    }
+  }
+  return gProcessed;
 }
 
 int main( int argc, char** argv ) {
@@ -175,7 +212,7 @@ int main( int argc, char** argv ) {
   cin >> path;
 
   cout << "Creating output directories: " << endl;
-  createOutputDirectories(path);
+  createOutputDirectories();
 
   for (const auto & p : fs::directory_iterator(path)) {
     string originalPath = p.path();
@@ -185,7 +222,7 @@ int main( int argc, char** argv ) {
     Mat originalImage = imread(originalPath, IMREAD_COLOR);
 
     fileIterator++;
-    string currentWorkingDirectory = path + "/noise/" + to_string(fileIterator);
+    string currentWorkingDirectory = "output/noise/" + to_string(fileIterator);
     fs::create_directory(currentWorkingDirectory);
 
     // string blurredName = originalPath + "_gaussian_blur.jpg";
@@ -197,70 +234,44 @@ int main( int argc, char** argv ) {
     // Mat sharpened = unsharpMask(blurred,1,5,2);
     // imwrite(unsharpMaskName, sharpened);
 
-    // string deconvName = originalPath + "_deconvolution.jpg";
-    // lucyRichardsonDeconv(blurred,20,2);
-    // imwrite(unsharpMaskName, sharpened);
-
-    // string gNoiseName2 = originalPath + "_gaussian_noise_high.jpg";
-    // string gBlurName = originalPath + "_gaussian_blur.jpg";
-    // string gBlurName2 = originalPath + "_gaussian_blur_high.jpg";
-    // string gBilateralName = originalPath + "_bilateral_filter.jpg";
-    // string gBilateralName2 = originalPath + "_bilateral_filter_high.jpg";
-    // string gNlName = originalPath + "_non_local.jpg";
-    // string gNlName2 = originalPath + "_non_local_high.jpg";
-
     cout << "Applying Gaussian noise " << endl;
     Mat gNoise(originalImage.size(),originalImage.type());
     AddGaussianNoise_Opencv(originalImage,gNoise,0,25.0);
-    // Mat gNoise2(originalImage.size(),originalImage.type());
-    // AddGaussianNoise_Opencv(originalImage,gNoise2,0,25.0);
-    // imwrite(gNoiseName2, gNoise2);
 
-    // cout << "Removing noise using Gaussian blur " << endl;
-    // Mat gBlur(originalImage.size(),originalImage.type());
-    // GaussianBlur(gNoise, gBlur, Size( 3, 3 ), 0, 0 );
-    // imwrite(gBlurName, gBlur);
-    // Mat gBlur2(originalImage.size(),originalImage.type());
-    // GaussianBlur(gNoise2, gBlur2, Size( 3, 3 ), 0, 0 );
-    // imwrite(gBlurName2, gBlur2);
-    // 14 38 10
+    for (int metricIterator = METRIC_TYPE::PSNR; metricIterator <= METRIC_TYPE::BRISQUE; metricIterator++) {
+      METRIC_TYPE metric_type = static_cast<METRIC_TYPE>(metricIterator);
+      string metricsDirectory = currentWorkingDirectory + "/" + metricToString(metric_type);
+      fs::create_directory(metricsDirectory);
+      imwrite(metricsDirectory + "/_noise.jpg", gNoise);
+      for (int filterIterator = FILTER_TYPE::BILATERAL; filterIterator <= FILTER_TYPE::NLMEANS; filterIterator++) {
+        FILTER_TYPE filter_type = static_cast<FILTER_TYPE>(filterIterator);
+        Mat bestResult = findBestParams(originalImage, gNoise, metric_type, filter_type);
+        imwrite(metricsDirectory + "/" + filterToString(filter_type) + ".jpg", bestResult);
+        double percentage = 0;
+        switch (metric_type) {
+          case METRIC_TYPE::PSNR : {
+            double originalPSNR = getPSNR(originalImage, gNoise);
+            double restoredPSNR = getPSNR(originalImage, bestResult);
+            percentage = percentageIncrease(originalPSNR, restoredPSNR);
+            break;
+          }
+          case METRIC_TYPE::MSSIM : {
+            double originalMSSIM = getMSSIM(originalImage, gNoise);
+            double restoredMSSIM = getMSSIM(originalImage, bestResult);
+            percentage = percentageIncrease(originalMSSIM, restoredMSSIM);
+            break;
+          }
+          case METRIC_TYPE::BRISQUE : {
+            double originalBRISQUE = getBRISQUE(gNoise);
+            double restoredBRISQUE = getBRISQUE(bestResult);
+            percentage = percentageDecrease(originalBRISQUE, restoredBRISQUE);
+            break;
+          }
+        }
+        cout << "percentage increase:" + to_string(percentage) + "%" << endl;
+      }
+    }
 
-    // TODO: convert to function
-    METRIC_TYPE metric_type = MSSIM;
-    string metricsDirectory = currentWorkingDirectory + "/" + metricToString(MSSIM);
-    fs::create_directory(metricsDirectory);
-    imwrite(currentWorkingDirectory + "/_noise.jpg", gNoise);
-    Mat bestResult = findBestParams(originalImage, gNoise, metric_type);
-    imwrite(metricsDirectory + "/bilateral.jpg", bestResult);
-
-    // cout << "Removing noise using non-local-means algorythm " << endl;
-    // Mat gNl(originalImage.size(),originalImage.type());
-    // fastNlMeansDenoisingColored(gNoise, gNl, 3, 7, 21 );
-    // imwrite(gNlName, gNl);
-    // Mat gNl2(originalImage.size(),originalImage.type());
-    // fastNlMeansDenoisingColored(gNoise2, gNl2, 3, 7, 21 );
-    // imwrite(gNlName2, gNl2);
-
-    // cout << "Getting scores " << endl;
-    // output += originalPath;
-    // output += '\n';
-
-    // output += "Low noise level: ";
-    // output += '\n';
-
-    // output += getPSNRscores(originalImage,gNoise,gBlur,gBilateral,gNl);
-    // output += getMSSIMscores(originalImage,gNoise,gBlur,gBilateral,gNl);
-    // output += getBRISQUEscores(gNoise,gBlur,gBilateral,gNl);
-
-    // output += "High noise level: ";
-    // output += '\n';
-
-    // output += getPSNRscores(originalImage,gNoise2,gBlur2,gBilateral2,gNl2);
-    // output += getMSSIMscores(originalImage,gNoise2,gBlur2,gBilateral2,gNl2);
-    // output += getBRISQUEscores(gNoise2,gBlur2,gBilateral2,gNl2);
-    
-    // output += '\n';
-    // output += '\n';
   }
   cout << "All images processed" << endl;
   // ofstream out("output.txt");

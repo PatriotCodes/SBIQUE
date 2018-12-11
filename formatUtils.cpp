@@ -1,13 +1,11 @@
 #include "formatUtils.h"
 
-string percentageIncrease(double originalValue, double NewValue) {
-    double increase = NewValue - originalValue;
-    double increasePerc = increase / originalValue * 100;
-    return to_string(increasePerc) + "%";
+double percentageIncrease(double originalValue, double NewValue) {
+   double increase = NewValue - originalValue;
+   return increase / originalValue * 100;
 }
 
-string percentageDecrease(double originalValue, double NewValue) {
+double percentageDecrease(double originalValue, double NewValue) {
   double decrease = originalValue - NewValue;
-  double increasePerc = decrease / originalValue * 100;
-  return to_string(increasePerc) + "%";
+  return decrease / originalValue * 100;
 }

@@ -2,5 +2,5 @@
 
 using namespace std;
 
-string percentageIncrease(double originalValue, double NewValue);
-string percentageDecrease(double originalValue, double NewValue);
+double percentageIncrease(double originalValue, double NewValue);
+double percentageDecrease(double originalValue, double NewValue);
