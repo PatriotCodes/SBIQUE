@@ -37,7 +37,7 @@
 *.png
 
 # Program Output
-output.txt
+output/
 
 # Working folders
 img/
