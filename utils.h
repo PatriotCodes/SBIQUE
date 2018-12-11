@@ -41,3 +41,10 @@ double percentageDecrease(double originalValue, double NewValue);
 bool deleteFile(string fileName);
 bool AddGaussianNoise_Opencv(const Mat mSrc, Mat &mDst, double Mean=0.0, double StdDev=10.0);
 Mat findBestParams(Mat originalImage, Mat distortedImage, METRIC_TYPE metric_type, FILTER_TYPE filter_type);
+
+namespace privateFunctions {
+	double getScore(METRIC_TYPE metric_type, Mat originalImage, Mat processedImage);
+	Mat getProcessedImage(Mat original_image, Mat distorted_image, FILTER_TYPE filter_type, int d, int g1, int g2);
+}
+
+using namespace privateFunctions;

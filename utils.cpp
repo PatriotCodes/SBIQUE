@@ -55,40 +55,8 @@ Mat findBestParams(Mat originalImage, Mat distortedImage, METRIC_TYPE metric_typ
       stepCounter++;
       cout << "Processing image using " + filterToString(filter_type) + "(" + metricToString(metric_type) + ") filter step: " << stepCounter << endl;
       cout << "d: " << d << ";  g1: " << g1 << ";  g2: " << g2 << endl;
-      Mat gProcessed(originalImage.size(),originalImage.type());
-      switch (filter_type) {
-        case FILTER_TYPE::GAUSSIAN : {
-          GaussianBlur(distortedImage, gProcessed, Size( d, d ), g1, g2 );
-          break;
-        }
-        case FILTER_TYPE::BILATERAL : {
-          bilateralFilter(distortedImage, gProcessed, d, g1, g2 );
-          break;
-        }
-        case FILTER_TYPE::NLMEANS : {
-          fastNlMeansDenoisingColored(distortedImage, gProcessed, d, g1, g2 );
-          break;
-        }
-        case FILTER_TYPE::UNSHARP_MASK : {
-          gProcessed = unsharpMask(distortedImage,d,g1,g2);
-          break;
-        }
-      }
-      double score = 0;
-      switch (metric_type) {
-        case METRIC_TYPE::PSNR : {
-          score = getPSNR(originalImage, gProcessed);
-          break;
-        }
-        case METRIC_TYPE::MSSIM : {
-          score = getMSSIM(originalImage, gProcessed);
-          break;
-        }
-        case METRIC_TYPE::BRISQUE : {
-          score = -getBRISQUE(gProcessed);
-          break;
-        }
-      }
+      Mat gProcessed = getProcessedImage(originalImage, distortedImage, filter_type, d, g1, g2);
+      double score = getScore(metric_type, originalImage, gProcessed);
       cout << "Score: " << score << endl;
       if (score > maxMsim) {
         maxMsim = score;
@@ -103,24 +71,52 @@ Mat findBestParams(Mat originalImage, Mat distortedImage, METRIC_TYPE metric_typ
   }
   cout << "Best params" << endl;
   cout << "d: " << d << ";  g1: " << g1 << ";  g2: " << g2 << endl;
-  Mat gProcessed(originalImage.size(),originalImage.type());
-  switch (filter_type) {
-    case FILTER_TYPE::GAUSSIAN : {
-      GaussianBlur(distortedImage, gProcessed, Size( d, d ), g1, g2 );
-      break;
-    }
-    case FILTER_TYPE::BILATERAL : {
-      bilateralFilter(distortedImage, gProcessed, d, g1, g2 );
-      break;
-    }
-    case FILTER_TYPE::NLMEANS : {
-      fastNlMeansDenoisingColored(distortedImage, gProcessed, d, g1, g2 );
-      break;
-    }
-    case FILTER_TYPE::UNSHARP_MASK : {
-      gProcessed = unsharpMask(distortedImage,d,g1,g2);
-      break;
-    }
-  }
+  Mat gProcessed = getProcessedImage(originalImage, distortedImage, filter_type, d, g1, g2);
   return gProcessed;
+}
+
+namespace privateFunctions {
+
+  double getScore(METRIC_TYPE metric_type, Mat originalImage, Mat processedImage) {
+    double score = 0;
+    switch (metric_type) {
+      case METRIC_TYPE::PSNR : {
+        score = getPSNR(originalImage, processedImage);
+        break;
+      }
+      case METRIC_TYPE::MSSIM : {
+        score = getMSSIM(originalImage, processedImage);
+        break;
+      }
+      case METRIC_TYPE::BRISQUE : {
+        score = -getBRISQUE(processedImage);
+        break;
+      }
+    }
+    return score;
+  }
+
+  Mat getProcessedImage(Mat original_image, Mat distorted_image, FILTER_TYPE filter_type, int d, int g1, int g2) {
+    Mat gProcessed(original_image.size(), original_image.type());
+    switch (filter_type) {
+      case FILTER_TYPE::GAUSSIAN : {
+        GaussianBlur(distorted_image, gProcessed, Size( d, d ), g1, g2);
+        break;
+      }
+      case FILTER_TYPE::BILATERAL : {
+        bilateralFilter(distorted_image, gProcessed, d, g1, g2 );
+        break;
+      }
+      case FILTER_TYPE::NLMEANS : {
+        fastNlMeansDenoisingColored(distorted_image, gProcessed, d, g1, g2);
+        break;
+      }
+      case FILTER_TYPE::UNSHARP_MASK : {
+        gProcessed = unsharpMask(distorted_image, d, g1 ,g2);
+        break;
+      }
+    }
+    return gProcessed;
+  }
+
 }
