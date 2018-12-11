@@ -13,6 +13,7 @@
 #include "metrics.h"
 #include "utils.h"
 #include "sharpen.h"
+#include "resultData.h"
 
 using namespace cv;
 using namespace std;
@@ -30,7 +31,7 @@ inline const string metricToString(METRIC_TYPE v) {
   }
 }
 
-enum FILTER_TYPE { GAUSSIAN, BILATERAL, NLMEANS };
+enum FILTER_TYPE { GAUSSIAN, BILATERAL, NLMEANS, UNSHARP_MASK };
 
 inline const string filterToString(FILTER_TYPE v) {
   switch (v) {
@@ -151,7 +152,6 @@ int main( int argc, char** argv ) {
   for (const auto & p : fs::directory_iterator(path)) {
     string originalPath = p.path();
 
-    cout << "String noise removal tests: " << endl;
     cout << "Processing " + originalPath << endl;
     Mat originalImage = imread(originalPath, IMREAD_COLOR);
 
@@ -159,19 +159,21 @@ int main( int argc, char** argv ) {
     string currentWorkingDirectory = "output/noise/" + to_string(fileIterator);
     fs::create_directory(currentWorkingDirectory);
 
-    // string blurredName = originalPath + "_gaussian_blur.jpg";
-    // string unsharpMaskName = originalPath + "_unsharp_mask.jpg";
-    // cout << "Blurring image with gaussian blur " << endl;
     // Mat blurred;
     // GaussianBlur(originalImage, blurred, Size(), 1, 1);
     // imwrite(blurredName, blurred);
     // Mat sharpened = unsharpMask(blurred,1,5,2);
     // imwrite(unsharpMaskName, sharpened);
 
-    cout << "Applying Gaussian noise " << endl;
+    cout << "Prepairing distorted image variations" << endl;
+    cout << "Applying Gaussian noise" << endl;
     Mat gNoise(originalImage.size(),originalImage.type());
     AddGaussianNoise_Opencv(originalImage,gNoise,0,25.0);
+    cout << "Blurring image" << endl;
+    Mat gBlur;
+    GaussianBlur(originalImage, gBlur, Size(), 1, 1);
 
+    cout << "Starting noise removal tests" << endl;
     for (int metricIterator = METRIC_TYPE::PSNR; metricIterator <= METRIC_TYPE::BRISQUE; metricIterator++) {
       METRIC_TYPE metric_type = static_cast<METRIC_TYPE>(metricIterator);
       string metricsDirectory = currentWorkingDirectory + "/" + metricToString(metric_type);
@@ -204,11 +206,14 @@ int main( int argc, char** argv ) {
         }
         cout << "percentage increase:" + to_string(percentage) + "%" << endl;
       }
+      // TODO: save results
     }
+
+    cout << "Starting deblurring tests" << endl;
 
   }
   cout << "All images processed" << endl;
-  // ofstream out("output.txt");
+  // ofstream out("output/results.txt");
   // out << output;
   // out.close();
   // cout << "Scores can be found in output.txt" << endl;
