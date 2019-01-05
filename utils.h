@@ -1,3 +1,5 @@
+#ifndef BR_UTILS_H
+#define BR_UTILS_H
 #include <opencv2/core/core.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/highgui/highgui.hpp>
@@ -63,3 +65,5 @@ namespace privateFunctions {
 }
 
 using namespace privateFunctions;
+
+#endif
