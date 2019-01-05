@@ -75,6 +75,49 @@ Mat findBestParams(Mat originalImage, Mat distortedImage, METRIC_TYPE metric_typ
   return gProcessed;
 }
 
+string getTotalResults(vector<ResultData> results) {
+  string output = "";
+  for (auto &result : results) {
+    output += result.toString();
+    output += '\n';
+  }
+  return output;
+}
+
+string getSummaryResults(vector<ResultData> results, FILTER_TYPE filter_type) {
+  string output = "";
+  double scorePSNR = 0;
+  double scoreMSSIM = 0;
+  double scoreBRISQUE = 0;
+  for (auto &result : results) {
+    if (result.filter_type == filter_type) {
+      switch (result.metric_type) {
+        case METRIC_TYPE::PSNR : {
+          scorePSNR += result.score;
+          break;
+        }
+        case METRIC_TYPE::MSSIM : {
+          scoreMSSIM += result.score;
+          break;
+        }
+        case METRIC_TYPE::BRISQUE : {
+          scoreBRISQUE += result.score;
+          break;
+        }
+      }
+    }
+  }
+  // TODO: results.size is not appropriate!!!
+  scorePSNR = scorePSNR / results.size();
+  scoreBRISQUE = scoreBRISQUE / results.size();
+  scoreMSSIM = scoreMSSIM / results.size();
+  output += "Total scores for " + filterToString(filter_type) + ": " + '\n';
+  output += "PSNR: " + to_string(scorePSNR) + '\n';
+  output += "MSSIM: " + to_string(scoreBRISQUE) + '\n';
+  output += "BRISQUE: " + to_string(scoreBRISQUE) + '\n';
+  return output;
+}
+
 namespace privateFunctions {
 
   double getScore(METRIC_TYPE metric_type, Mat originalImage, Mat processedImage) {

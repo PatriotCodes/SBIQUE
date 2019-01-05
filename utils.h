@@ -36,11 +36,26 @@ inline const string filterToString(FILTER_TYPE v) {
   }
 }
 
+struct ResultData {
+  FILTER_TYPE filter_type;
+  METRIC_TYPE metric_type;
+  double score;
+
+  ResultData(FILTER_TYPE in_filter_type, METRIC_TYPE in_metric_type, double in_score) : 
+    filter_type(in_filter_type), metric_type(in_metric_type), score(in_score) {}
+
+  string toString() {
+    return filterToString(filter_type) + "  " + metricToString(metric_type) + "  score: " + to_string(score) + '\n';
+  }
+};
+
 double percentageIncrease(double originalValue, double NewValue);
 double percentageDecrease(double originalValue, double NewValue);
 bool deleteFile(string fileName);
 bool AddGaussianNoise_Opencv(const Mat mSrc, Mat &mDst, double Mean=0.0, double StdDev=10.0);
 Mat findBestParams(Mat originalImage, Mat distortedImage, METRIC_TYPE metric_type, FILTER_TYPE filter_type);
+string getTotalResults(vector<ResultData> results);
+string getSummaryResults(vector<ResultData> results, FILTER_TYPE filter_type);
 
 namespace privateFunctions {
 	double getScore(METRIC_TYPE metric_type, Mat originalImage, Mat processedImage);

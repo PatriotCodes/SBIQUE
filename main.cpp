@@ -18,22 +18,14 @@ void createOutputDirectories() {
   fs::create_directory("output");
   fs::create_directory("output/noise");
   fs::create_directory("output/blur");
+  fs::create_directory("output/results");
+  fs::create_directory("output/results_total");
 }
-
-struct ResultData {
-  FILTER_TYPE filter_type;
-  METRIC_TYPE metric_type;
-  double score;
-
-  ResultData(FILTER_TYPE in_filter_type, METRIC_TYPE in_metric_type, double in_score) : 
-    filter_type(in_filter_type), metric_type(in_metric_type), score(in_score) {}
-};
 
 int main( int argc, char** argv ) {
   string path;
   string output = "";
   int fileIterator = 0;
-  vector<ResultData> results;
 
   cout << "Please specify directory with images: ";
   cin >> path;
@@ -41,8 +33,13 @@ int main( int argc, char** argv ) {
   cout << "Creating output directories: " << endl;
   createOutputDirectories();
 
+  vector<ResultData> totalResults;
+
   for (const auto & p : fs::directory_iterator(path)) {
     string originalPath = p.path();
+
+    vector<ResultData> resultsNoise;
+    vector<ResultData> resultsBlur;
 
     cout << "Processing " + originalPath << endl;
     Mat originalImage = imread(originalPath, IMREAD_COLOR);
@@ -54,7 +51,7 @@ int main( int argc, char** argv ) {
     cout << "Prepairing distorted image variations" << endl;
     cout << "Applying Gaussian noise" << endl;
     Mat gNoise(originalImage.size(),originalImage.type());
-    AddGaussianNoise_Opencv(originalImage,gNoise,0,25.0);
+    AddGaussianNoise_Opencv(originalImage,gNoise,0,12.0);
     cout << "Blurring image" << endl;
     Mat gBlur;
     GaussianBlur(originalImage, gBlur, Size(), 1, 1);
@@ -91,7 +88,8 @@ int main( int argc, char** argv ) {
           }
         }
         cout << "percentage increase:" + to_string(percentage) + "%" << endl;
-        results.push_back(ResultData(filter_type, metric_type, percentage));
+        resultsNoise.push_back(ResultData(filter_type, metric_type, percentage));
+        totalResults.push_back(ResultData(filter_type, metric_type, percentage));
       }
     }
 
@@ -129,16 +127,35 @@ int main( int argc, char** argv ) {
           }
         }
         cout << "percentage increase:" + to_string(percentage) + "%" << endl;
-        results.push_back(ResultData(filter_type, metric_type, percentage));
+        resultsBlur.push_back(ResultData(filter_type, metric_type, percentage));
+        totalResults.push_back(ResultData(filter_type, metric_type, percentage));
       }
     }
 
+    currentWorkingDirectory = "output/results/" + to_string(fileIterator);
+    fs::create_directory(currentWorkingDirectory);
+
+    cout << "Writing results on disk" << endl;
+    ofstream outNoise(currentWorkingDirectory + "/results_noise.txt");
+    outNoise << getTotalResults(resultsNoise);
+    outNoise.close();
+    ofstream outBlur(currentWorkingDirectory + "/results_blur.txt");
+    outBlur << getTotalResults(resultsBlur);
+    outBlur.close();
+    cout << "Scores wrote on disk" << endl;
   }
 
+  cout << "Writing total scores on disk" << endl;
+  string totalOutpuDir = "output/results_total";
+  fs::create_directory(totalOutpuDir);
+  ofstream outTotalNoise(totalOutpuDir + "/results_noise.txt");
+  for (int filterIterator = FILTER_TYPE::GAUSSIAN; filterIterator <= FILTER_TYPE::UNSHARP_MASK; filterIterator++) {
+    FILTER_TYPE filter_type = static_cast<FILTER_TYPE>(filterIterator);
+    outTotalNoise << getSummaryResults(totalResults, filter_type);
+    outTotalNoise << endl;
+  }
+
+  outTotalNoise.close();
   cout << "All images processed" << endl;
-  // ofstream out("output/results.txt");
-  // out << output;
-  // out.close();
-  // cout << "Scores can be found in output.txt" << endl;
   return 0;
 }
