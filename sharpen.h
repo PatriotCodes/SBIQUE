@@ -7,5 +7,6 @@
 using namespace cv;
 
 Mat unsharpMask(const Mat image, double sigma, double threshold, double amount);
+void sharpenWithKernel(const Mat& image, Mat& result);
 
 #endif

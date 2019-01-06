@@ -58,42 +58,42 @@ int main( int argc, char** argv ) {
     Mat gBlur;
     GaussianBlur(originalImage, gBlur, Size(), 1, 1);
 
-    cout << "Starting tests on noise removal: " << endl;
-    for (int metricIterator = METRIC_TYPE::PSNR; metricIterator <= METRIC_TYPE::BRISQUE; metricIterator++) {
-      METRIC_TYPE metric_type = static_cast<METRIC_TYPE>(metricIterator);
-      string metricsDirectory = currentWorkingDirectory + "/" + metricToString(metric_type);
-      fs::create_directory(metricsDirectory);
-      imwrite(metricsDirectory + "/_noise.jpg", gNoise);
-      for (int filterIterator = FILTER_TYPE::GAUSSIAN; filterIterator <= FILTER_TYPE::NLMEANS; filterIterator++) {
-        FILTER_TYPE filter_type = static_cast<FILTER_TYPE>(filterIterator);
-        Mat bestResult = findBestParams(originalImage, gNoise, metric_type, filter_type);
-        imwrite(metricsDirectory + "/" + filterToString(filter_type) + ".jpg", bestResult);
-        double percentage = 0;
-        switch (metric_type) {
-          case METRIC_TYPE::PSNR : {
-            double originalPSNR = getPSNR(originalImage, gNoise);
-            double restoredPSNR = getPSNR(originalImage, bestResult);
-            percentage = percentageIncrease(originalPSNR, restoredPSNR);
-            break;
-          }
-          case METRIC_TYPE::MSSIM : {
-            double originalMSSIM = getMSSIM(originalImage, gNoise);
-            double restoredMSSIM = getMSSIM(originalImage, bestResult);
-            percentage = percentageIncrease(originalMSSIM, restoredMSSIM);
-            break;
-          }
-          case METRIC_TYPE::BRISQUE : {
-            double originalBRISQUE = getBRISQUE(gNoise);
-            double restoredBRISQUE = getBRISQUE(bestResult);
-            percentage = percentageDecrease(originalBRISQUE, restoredBRISQUE);
-            break;
-          }
-        }
-        cout << "percentage increase:" + to_string(percentage) + "%" << endl;
-        resultsNoise.push_back(ResultData(filter_type, metric_type, percentage));
-        totalResults.push_back(ResultData(filter_type, metric_type, percentage));
-      }
-    }
+    // cout << "Starting tests on noise removal: " << endl;
+    // for (int metricIterator = METRIC_TYPE::PSNR; metricIterator <= METRIC_TYPE::BRISQUE; metricIterator++) {
+    //   METRIC_TYPE metric_type = static_cast<METRIC_TYPE>(metricIterator);
+    //   string metricsDirectory = currentWorkingDirectory + "/" + metricToString(metric_type);
+    //   fs::create_directory(metricsDirectory);
+    //   imwrite(metricsDirectory + "/_noise.jpg", gNoise);
+    //   for (int filterIterator = FILTER_TYPE::GAUSSIAN; filterIterator <= FILTER_TYPE::NLMEANS; filterIterator++) {
+    //     FILTER_TYPE filter_type = static_cast<FILTER_TYPE>(filterIterator);
+    //     Mat bestResult = findBestParams(originalImage, gNoise, metric_type, filter_type);
+    //     imwrite(metricsDirectory + "/" + filterToString(filter_type) + ".jpg", bestResult);
+    //     double percentage = 0;
+    //     switch (metric_type) {
+    //       case METRIC_TYPE::PSNR : {
+    //         double originalPSNR = getPSNR(originalImage, gNoise);
+    //         double restoredPSNR = getPSNR(originalImage, bestResult);
+    //         percentage = percentageIncrease(originalPSNR, restoredPSNR);
+    //         break;
+    //       }
+    //       case METRIC_TYPE::MSSIM : {
+    //         double originalMSSIM = getMSSIM(originalImage, gNoise);
+    //         double restoredMSSIM = getMSSIM(originalImage, bestResult);
+    //         percentage = percentageIncrease(originalMSSIM, restoredMSSIM);
+    //         break;
+    //       }
+    //       case METRIC_TYPE::BRISQUE : {
+    //         double originalBRISQUE = getBRISQUE(gNoise);
+    //         double restoredBRISQUE = getBRISQUE(bestResult);
+    //         percentage = percentageDecrease(originalBRISQUE, restoredBRISQUE);
+    //         break;
+    //       }
+    //     }
+    //     cout << "percentage increase:" + to_string(percentage) + "%" << endl;
+    //     resultsNoise.push_back(ResultData(filter_type, metric_type, percentage));
+    //     totalResults.push_back(ResultData(filter_type, metric_type, percentage));
+    //   }
+    // }
 
     currentWorkingDirectory = "output/blur/" + to_string(fileIterator);
     fs::create_directory(currentWorkingDirectory);
@@ -103,8 +103,8 @@ int main( int argc, char** argv ) {
       string metricsDirectory = currentWorkingDirectory + "/" + metricToString(metric_type);
       fs::create_directory(metricsDirectory);
       imwrite(metricsDirectory + "/_blur.jpg", gBlur);
-      for (int filterIterator = FILTER_TYPE::UNSHARP_MASK; filterIterator <= FILTER_TYPE::UNSHARP_MASK; filterIterator++) {
-        FILTER_TYPE filter_type = static_cast<FILTER_TYPE>(filterIterator);
+
+        FILTER_TYPE filter_type = FILTER_TYPE::UNSHARP_MASK;
         Mat bestResult = findBestParams(originalImage, gBlur, metric_type, filter_type);
         imwrite(metricsDirectory + "/" + filterToString(filter_type) + ".jpg", bestResult);
         double percentage = 0;
@@ -131,7 +131,42 @@ int main( int argc, char** argv ) {
         cout << "percentage increase:" + to_string(percentage) + "%" << endl;
         resultsBlur.push_back(ResultData(filter_type, metric_type, percentage));
         totalResults.push_back(ResultData(filter_type, metric_type, percentage));
-      }
+    }
+
+    for (int metricIterator = METRIC_TYPE::PSNR; metricIterator <= METRIC_TYPE::BRISQUE; metricIterator++) {
+      METRIC_TYPE metric_type = static_cast<METRIC_TYPE>(metricIterator);
+      string metricsDirectory = currentWorkingDirectory + "/" + metricToString(metric_type);
+      fs::create_directory(metricsDirectory);
+      imwrite(metricsDirectory + "/_blur.jpg", gBlur);
+
+        FILTER_TYPE filter_type = FILTER_TYPE::KERNEL_SHARPENING;
+        Mat bestResult(gBlur.size(),gBlur.type());
+        sharpenWithKernel(gBlur, bestResult);
+        imwrite(metricsDirectory + "/" + filterToString(filter_type) + ".jpg", bestResult);
+        double percentage = 0;
+        switch (metric_type) {
+          case METRIC_TYPE::PSNR : {
+            double originalPSNR = getPSNR(originalImage, gNoise);
+            double restoredPSNR = getPSNR(originalImage, bestResult);
+            percentage = percentageIncrease(originalPSNR, restoredPSNR);
+            break;
+          }
+          case METRIC_TYPE::MSSIM : {
+            double originalMSSIM = getMSSIM(originalImage, gNoise);
+            double restoredMSSIM = getMSSIM(originalImage, bestResult);
+            percentage = percentageIncrease(originalMSSIM, restoredMSSIM);
+            break;
+          }
+          case METRIC_TYPE::BRISQUE : {
+            double originalBRISQUE = getBRISQUE(gNoise);
+            double restoredBRISQUE = getBRISQUE(bestResult);
+            percentage = percentageDecrease(originalBRISQUE, restoredBRISQUE);
+            break;
+          }
+        }
+        cout << "percentage increase:" + to_string(percentage) + "%" << endl;
+        resultsBlur.push_back(ResultData(filter_type, metric_type, percentage));
+        totalResults.push_back(ResultData(filter_type, metric_type, percentage));
     }
 
     currentWorkingDirectory = "output/results/" + to_string(fileIterator);

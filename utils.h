@@ -26,15 +26,20 @@ inline const string metricToString(METRIC_TYPE v) {
   }
 }
 
-enum FILTER_TYPE { GAUSSIAN, BILATERAL, NLMEANS, UNSHARP_MASK };
+enum FILTER_TYPE { GAUSSIAN, 
+  BILATERAL, 
+  NLMEANS, 
+  UNSHARP_MASK,
+  KERNEL_SHARPENING };
 
 inline const string filterToString(FILTER_TYPE v) {
   switch (v) {
-    case FILTER_TYPE::GAUSSIAN:     return "gaussian";
-    case FILTER_TYPE::BILATERAL:    return "bilateral";
-    case FILTER_TYPE::NLMEANS:      return "non-local-means";
-    case FILTER_TYPE::UNSHARP_MASK: return "unsharp mask";
-    default:                        return "[Unknown FILTER_TYPE]";
+    case FILTER_TYPE::GAUSSIAN:          return "gaussian";
+    case FILTER_TYPE::BILATERAL:         return "bilateral";
+    case FILTER_TYPE::NLMEANS:           return "non-local-means";
+    case FILTER_TYPE::UNSHARP_MASK:      return "unsharp mask";
+    case FILTER_TYPE::KERNEL_SHARPENING: return "highpass filter";
+    default:                             return "[Unknown FILTER_TYPE]";
   }
 }
 
