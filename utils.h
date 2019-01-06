@@ -57,7 +57,7 @@ bool deleteFile(string fileName);
 bool AddGaussianNoise_Opencv(const Mat mSrc, Mat &mDst, double Mean=0.0, double StdDev=10.0);
 Mat findBestParams(Mat originalImage, Mat distortedImage, METRIC_TYPE metric_type, FILTER_TYPE filter_type);
 string getTotalResults(vector<ResultData> results);
-string getSummaryResults(vector<ResultData> results, FILTER_TYPE filter_type);
+string getSummaryResults(vector<ResultData> results, FILTER_TYPE filter_type, int totalImages);
 
 namespace privateFunctions {
 	double getScore(METRIC_TYPE metric_type, Mat originalImage, Mat processedImage);

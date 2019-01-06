@@ -84,7 +84,7 @@ string getTotalResults(vector<ResultData> results) {
   return output;
 }
 
-string getSummaryResults(vector<ResultData> results, FILTER_TYPE filter_type) {
+string getSummaryResults(vector<ResultData> results, FILTER_TYPE filter_type, int totalImages) {
   string output = "";
   double scorePSNR = 0;
   double scoreMSSIM = 0;
@@ -107,10 +107,9 @@ string getSummaryResults(vector<ResultData> results, FILTER_TYPE filter_type) {
       }
     }
   }
-  // TODO: results.size is not appropriate!!!
-  scorePSNR = scorePSNR / results.size();
-  scoreBRISQUE = scoreBRISQUE / results.size();
-  scoreMSSIM = scoreMSSIM / results.size();
+  scorePSNR = scorePSNR / totalImages;
+  scoreBRISQUE = scoreBRISQUE / totalImages;
+  scoreMSSIM = scoreMSSIM / totalImages;
   output += "Total scores for " + filterToString(filter_type) + ": " + '\n';
   output += "PSNR: " + to_string(scorePSNR) + '\n';
   output += "MSSIM: " + to_string(scoreBRISQUE) + '\n';

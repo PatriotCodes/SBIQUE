@@ -34,9 +34,11 @@ int main( int argc, char** argv ) {
   createOutputDirectories();
 
   vector<ResultData> totalResults;
+  int totalImages = 0;
 
   for (const auto & p : fs::directory_iterator(path)) {
     string originalPath = p.path();
+    totalImages++;
 
     vector<ResultData> resultsNoise;
     vector<ResultData> resultsBlur;
@@ -151,11 +153,12 @@ int main( int argc, char** argv ) {
   ofstream outTotalNoise(totalOutpuDir + "/results_noise.txt");
   for (int filterIterator = FILTER_TYPE::GAUSSIAN; filterIterator <= FILTER_TYPE::UNSHARP_MASK; filterIterator++) {
     FILTER_TYPE filter_type = static_cast<FILTER_TYPE>(filterIterator);
-    outTotalNoise << getSummaryResults(totalResults, filter_type);
+    outTotalNoise << getSummaryResults(totalResults, filter_type, totalImages);
     outTotalNoise << endl;
   }
 
   outTotalNoise.close();
   cout << "All images processed" << endl;
+  cout << "Total images processed: " + to_string(totalImages) << endl;
   return 0;
 }
