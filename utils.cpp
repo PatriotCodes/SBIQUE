@@ -112,7 +112,7 @@ string getSummaryResults(vector<ResultData> results, FILTER_TYPE filter_type, in
   scoreMSSIM = scoreMSSIM / totalImages;
   output += "Total scores for " + filterToString(filter_type) + ": " + '\n';
   output += "PSNR: " + to_string(scorePSNR) + '\n';
-  output += "MSSIM: " + to_string(scoreBRISQUE) + '\n';
+  output += "MSSIM: " + to_string(scoreMSSIM) + '\n';
   output += "BRISQUE: " + to_string(scoreBRISQUE) + '\n';
   return output;
 }
