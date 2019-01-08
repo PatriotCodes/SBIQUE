@@ -186,7 +186,7 @@ int main( int argc, char** argv ) {
   string totalOutpuDir = "output/results_total";
   fs::create_directory(totalOutpuDir);
   ofstream outTotalNoise(totalOutpuDir + "/results_noise.txt");
-  for (int filterIterator = FILTER_TYPE::GAUSSIAN; filterIterator <= FILTER_TYPE::UNSHARP_MASK; filterIterator++) {
+  for (int filterIterator = FILTER_TYPE::GAUSSIAN; filterIterator <= FILTER_TYPE::KERNEL_SHARPENING; filterIterator++) {
     FILTER_TYPE filter_type = static_cast<FILTER_TYPE>(filterIterator);
     outTotalNoise << getSummaryResults(totalResults, filter_type, totalImages);
     outTotalNoise << endl;
