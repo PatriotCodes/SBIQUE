@@ -185,13 +185,14 @@ int main( int argc, char** argv ) {
   cout << "Writing total scores on disk" << endl;
   string totalOutpuDir = "output/results_total";
   fs::create_directory(totalOutpuDir);
-  ofstream outTotalNoise(totalOutpuDir + "/results_noise.txt");
+  ofstream outTotalNoise(totalOutpuDir + "/results.txt");
   for (int filterIterator = FILTER_TYPE::GAUSSIAN; filterIterator <= FILTER_TYPE::KERNEL_SHARPENING; filterIterator++) {
     FILTER_TYPE filter_type = static_cast<FILTER_TYPE>(filterIterator);
     outTotalNoise << getSummaryResults(totalResults, filter_type, totalImages);
     outTotalNoise << endl;
   }
 
+  outTotalNoise << "Total images processed: " + to_string(totalImages) << endl;
   outTotalNoise.close();
   cout << "All images processed" << endl;
   cout << "Total images processed: " + to_string(totalImages) << endl;
